@@ -193,7 +193,7 @@ def modify_circuit(circuit, pair):
 
     #as i should be done, we can do this. If i is not done, something went wrong with i and j
     new_circuit.measure(i, 0)
-    with new_circuit.if_test((new_circuit.cregs[0], 1)):
+    with new_circuit.if_test((new_circuit.clbits[0], 1)):
         # new_circuit.append(Measure(), [i], [0])
         new_circuit.append(Reset(), [i], [])
 
