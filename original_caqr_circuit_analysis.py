@@ -1,11 +1,13 @@
 import qiskit
 import sys
 from qiskit import *
+from qiskit.visualization.pulse_v2 import draw
 from qiskit.visualization import dag_drawer
 from qiskit.converters import circuit_to_dag,dag_to_circuit
 from qiskit.transpiler import CouplingMap
 from qiskit.visualization import plot_histogram
 from qiskit.circuit import Reset
+from qiskit.circuit.quantumregister import Qubit
 from qiskit.circuit.library import Measure
 
 def has_operation_on_qubit(circuit, qubit_index):
@@ -17,7 +19,7 @@ def has_operation_on_qubit(circuit, qubit_index):
     :return: True if there is an operation on the qubit, False otherwise.
     """
     for _, qargs, _ in circuit.data:
-        if any(circuit.find_bit(q).index == qubit_index for q in qargs):
+        if any(qubit.index == qubit_index for qubit in qargs):
             return True
     return False    
             
@@ -52,12 +54,40 @@ def has_cycle(graph, start, i, j):
         for neighbor in graph.get(node, []):
             if neighbor not in visited and neighbor not in stack and node <= i:
                 stack.append(neighbor)
+    '''
+    def visit(node):
+        visited = set()
+        stack = [(start, iter(graph.get(start, [])))]
+        while stack:
+            node, children = stack[-1]
+            if node not in visited:
+                visited.add(node)
+            try:
+                child = next(children)
+                if child in visited:
+                    # Check if the child is on the current path
+                    if any(child == c for c, _ in stack):
+                        return True
+                else:
+                    stack.append((child, iter(graph.get(child, []))))
+            except StopIteration:
+                stack.pop()
+        return False
+
+    cycle_detected = visit(start)
+    
+    # Remove the temporarily added edge
+    if j in graph[i]:
+        graph[i].remove(j)
+    if not graph[i]:
+        del graph[i]
+    '''
     return cycle_detected
 
 
-def share_same_gate(circuit, qiskit_dag, i, j):
+def share_same_gate(qiskit_dag, i, j):
     for node in qiskit_dag.topological_op_nodes():
-        qubits = [circuit.find_bit(q).index for q in node.qargs]
+        qubits = [qubit.index for qubit in node.qargs]
         if i in qubits and j in qubits:
             return True
     return False
@@ -84,7 +114,7 @@ def find_qubit_reuse_pairs(circuit):
             first_op_index_j = first_i[j]
 
 
-            if i != j and not share_same_gate(circuit, qiskit_dag, i, j) and not has_cycle(custom_dag, last_op_index_i,last_op_index_i,first_op_index_j) and has_operation_on_qubit(circuit,i) and has_operation_on_qubit(circuit,j):
+            if i != j and not share_same_gate(qiskit_dag, i, j) and not has_cycle(custom_dag, last_op_index_i,last_op_index_i,first_op_index_j) and has_operation_on_qubit(circuit,i) and has_operation_on_qubit(circuit,j):
                 reusable_pairs.append((i, j))
 
     return reusable_pairs
@@ -145,76 +175,6 @@ def remove_consecutive_duplicate_gates(circuit):
 
     return new_circuit
 # '''
-# def modify_circuit(circuit, pair):
-#     """
-#     Modifies the given circuit by replacing operations on qubit j with qubit i,
-#     and reordering them to occur after the last use, measurement, and reset of qubit i.
-
-#     :param QuantumCircuit circuit: The quantum circuit to modify
-#     :param tuple pair: A tuple (i, j) indicating the qubits to be swapped
-#     """
-#     i, j = pair
-
-#     # Ensure the circuit has a classical register for measurement
-#     if not circuit.cregs:
-#         circuit.add_register(ClassicalRegister(1))
-
-#     # Store all operations, track those that contain j
-#     operations = []
-#     check_list = []
-#     get_list = []
-#     visited = []
-#     last_i = -1
-#     for index, (inst, qargs, cargs) in enumerate(circuit.data):
-#         operations.append((inst, qargs, cargs))
-#         visited.append(index)
-            
-#         if any(circuit.find_bit(q).index == i for q in qargs):
-#             check_list.append(index)
-#         if any(circuit.find_bit(q).index == j for q in qargs):
-#             get_list.append(index)
-
-#     #generate dag, and reverse it to form dependency lists
-#     forwards_adjecencies = my_custom_dag(circuit)
-#     dependencies = [[] for _ in range(len(operations))]
-#     for a, adj in forwards_adjecencies.items():
-#         for b in adj:
-#             dependencies[b].append(a)
-#     # Create a new circuit with the same registers
-#     new_circuit = QuantumCircuit(*circuit.qregs, *circuit.cregs)
-
-#     # Add all operations to the new circuit that do not depend on j or its descendants
-#     for index, (inst, qargs, cargs) in enumerate(operations):
-#         #condition 1 if a dependency has not been processed, condition 2 is if it contains j
-#         if any(n in visited for n in dependencies[index]) or index in get_list:
-#             continue
-#         new_circuit.append(inst, qargs, cargs)
-#         visited.remove(index)
-
-#     #as i should be done, we can do this. If i is not done, something went wrong with i and j
-#     new_circuit.measure(i, 0)
-#     with new_circuit.if_test((new_circuit.clbits[0], 1)):
-#         # new_circuit.append(Measure(), [i], [0])
-#         new_circuit.append(Reset(), [i], [])
-
-#     # new_circuit.append(Measure(), [i], [0]).c_if(new_circuit.cregs[0], 1)
-#     # new_circuit.append(Reset(), [i], []).c_if(new_circuit.cregs[0], 1)
-
-#     # Process remaining operations, replacing qubit j with qubit i
-#     for index, (inst, qargs, cargs) in enumerate(operations):
-#         # print(operations[index])
-#         if  index in get_list:
-#             new_qargs = [new_circuit.qubits[i] if circuit.find_bit(q).index == j else q for q in qargs]
-#             new_circuit.append(inst, new_qargs, cargs)
-#             visited.remove(index)
-#         if index in visited:
-#             new_circuit.append(inst, qargs, cargs)
-#             visited.remove(index)
-#     # print(f'there is remain {visited} gates')
-#     new_circuit = remove_consecutive_duplicate_gates(new_circuit)
-#     return new_circuit
-
-# new, working version
 def modify_circuit(circuit, pair):
     """
     Modifies the given circuit by replacing operations on qubit j with qubit i,
@@ -261,9 +221,9 @@ def modify_circuit(circuit, pair):
         new_circuit.append(inst, qargs, cargs)
         visited.remove(index)
 
-    # Measure and ALWAYS reset qubit i (no conditional)
-    new_circuit.reset(new_circuit.qubits[i])
-
+    #as i should be done, we can do this. If i is not done, something went wrong with i and j
+    new_circuit.append(Measure(), [i], [0]).c_if(new_circuit.cregs[0], 1)
+    new_circuit.append(Reset(), [i], []).c_if(new_circuit.cregs[0], 1)
 
     # Process remaining operations, replacing qubit j with qubit i
     for index, (inst, qargs, cargs) in enumerate(operations):
