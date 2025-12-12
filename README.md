@@ -1,4 +1,3 @@
-﻿
 **Authors:**  
 Yasith Medagama Disanayakage & Deniz Alkan  
 *University of Cambridge*
@@ -9,6 +8,8 @@ Yasith Medagama Disanayakage & Deniz Alkan
 
 This project investigates the efficacy of **Compiler-Assisted Qubit Reuse (CaQR)** within the context of **Fault-Tolerant Quantum Computing (FTQC)**. 
 The framework benchmarks various quantum algorithms by simulating their execution on a surface code substrate using **Stim** for efficient Clifford circuit simulation and **Qiskit** for circuit construction and manipulation.
+
+CaQR GitHub: https://github.com/ruadapt/CaQR
 
 ### Key Metrics
 - **Physical Space-Time Volume ($V_{ST}$):** The product of active physical qubits and circuit duration (in code cycles).
@@ -65,7 +66,10 @@ python parallel.py bv
 ## Project Structure
 
 - **`parallel.py`**: Main execution script for running benchmarks and generating plots.
+- **`clean_notebook.ipynb`**: Jupyter notebook for interactive analysis and prototyping.
 - **`circuit_analysis.py`**: Core logic for CAQR implementation, including finding reuse pairs and modifying circuits.
 - **`quantum_utils.py`**: Utility functions for quantum circuit operations.
 
-- **`clean_notebook.ipynb`**: Jupyter notebook for interactive analysis and prototyping.
+Both circuit_analysis.py and quantum_utils.py are from or adapted from https://github.com/ruadapt/CaQR
+
+
