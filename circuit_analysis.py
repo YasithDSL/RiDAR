@@ -145,6 +145,76 @@ def remove_consecutive_duplicate_gates(circuit):
 
     return new_circuit
 # '''
+# def modify_circuit(circuit, pair):
+#     """
+#     Modifies the given circuit by replacing operations on qubit j with qubit i,
+#     and reordering them to occur after the last use, measurement, and reset of qubit i.
+
+#     :param QuantumCircuit circuit: The quantum circuit to modify
+#     :param tuple pair: A tuple (i, j) indicating the qubits to be swapped
+#     """
+#     i, j = pair
+
+#     # Ensure the circuit has a classical register for measurement
+#     if not circuit.cregs:
+#         circuit.add_register(ClassicalRegister(1))
+
+#     # Store all operations, track those that contain j
+#     operations = []
+#     check_list = []
+#     get_list = []
+#     visited = []
+#     last_i = -1
+#     for index, (inst, qargs, cargs) in enumerate(circuit.data):
+#         operations.append((inst, qargs, cargs))
+#         visited.append(index)
+            
+#         if any(circuit.find_bit(q).index == i for q in qargs):
+#             check_list.append(index)
+#         if any(circuit.find_bit(q).index == j for q in qargs):
+#             get_list.append(index)
+
+#     #generate dag, and reverse it to form dependency lists
+#     forwards_adjecencies = my_custom_dag(circuit)
+#     dependencies = [[] for _ in range(len(operations))]
+#     for a, adj in forwards_adjecencies.items():
+#         for b in adj:
+#             dependencies[b].append(a)
+#     # Create a new circuit with the same registers
+#     new_circuit = QuantumCircuit(*circuit.qregs, *circuit.cregs)
+
+#     # Add all operations to the new circuit that do not depend on j or its descendants
+#     for index, (inst, qargs, cargs) in enumerate(operations):
+#         #condition 1 if a dependency has not been processed, condition 2 is if it contains j
+#         if any(n in visited for n in dependencies[index]) or index in get_list:
+#             continue
+#         new_circuit.append(inst, qargs, cargs)
+#         visited.remove(index)
+
+#     #as i should be done, we can do this. If i is not done, something went wrong with i and j
+#     new_circuit.measure(i, 0)
+#     with new_circuit.if_test((new_circuit.clbits[0], 1)):
+#         # new_circuit.append(Measure(), [i], [0])
+#         new_circuit.append(Reset(), [i], [])
+
+#     # new_circuit.append(Measure(), [i], [0]).c_if(new_circuit.cregs[0], 1)
+#     # new_circuit.append(Reset(), [i], []).c_if(new_circuit.cregs[0], 1)
+
+#     # Process remaining operations, replacing qubit j with qubit i
+#     for index, (inst, qargs, cargs) in enumerate(operations):
+#         # print(operations[index])
+#         if  index in get_list:
+#             new_qargs = [new_circuit.qubits[i] if circuit.find_bit(q).index == j else q for q in qargs]
+#             new_circuit.append(inst, new_qargs, cargs)
+#             visited.remove(index)
+#         if index in visited:
+#             new_circuit.append(inst, qargs, cargs)
+#             visited.remove(index)
+#     # print(f'there is remain {visited} gates')
+#     new_circuit = remove_consecutive_duplicate_gates(new_circuit)
+#     return new_circuit
+
+# new, working version
 def modify_circuit(circuit, pair):
     """
     Modifies the given circuit by replacing operations on qubit j with qubit i,
@@ -191,14 +261,9 @@ def modify_circuit(circuit, pair):
         new_circuit.append(inst, qargs, cargs)
         visited.remove(index)
 
-    #as i should be done, we can do this. If i is not done, something went wrong with i and j
-    with new_circuit.if_test((new_circuit.cregs[0], 1)):
-        new_circuit.append(Measure(), [i], [0])
-    with new_circuit.if_test((new_circuit.cregs[0], 1)):
-        new_circuit.append(Reset(), [i], [])
+    # Measure and ALWAYS reset qubit i (no conditional)
+    new_circuit.reset(new_circuit.qubits[i])
 
-    # new_circuit.append(Measure(), [i], [0]).c_if(new_circuit.cregs[0], 1)
-    # new_circuit.append(Reset(), [i], []).c_if(new_circuit.cregs[0], 1)
 
     # Process remaining operations, replacing qubit j with qubit i
     for index, (inst, qargs, cargs) in enumerate(operations):
